@@ -2,7 +2,6 @@ package ch.n1b.ucum;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import ch.n1b.ucum.lib.Decimal;
 import ch.n1b.ucum.lib.UcumEssenceService;
 import ch.n1b.ucum.lib.UcumException;
 import ch.n1b.ucum.lib.UcumService;
@@ -11,9 +10,7 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.util.List;
-import java.util.Scanner;
 import java.util.function.Function;
 
 public class DecimalBenchmark {
@@ -26,22 +23,21 @@ public class DecimalBenchmark {
 
   @Benchmark
   @Fork(value = 1, warmups = 1)
-  @Warmup(iterations = 10, time = 200, timeUnit = MILLISECONDS)
-  @Measurement(iterations = 10, time = 200, timeUnit = MILLISECONDS)
+  @Warmup(iterations = 5, time = 500, timeUnit = MILLISECONDS)
+  @Measurement(iterations = 10, time = 500, timeUnit = MILLISECONDS)
   @BenchmarkMode(Mode.Throughput)
-  public void benchmarkDecimalConvert(ExecutionPlan plan, Blackhole blackhole)
-      throws Exception {
+  public void benchmarkDecimalConvert(ExecutionPlan plan, Blackhole blackhole) throws Exception {
 
-    // the hot loop
-    var got1 = plan.converter.convert(plan.value, SOURCE_UNIT, TARGET_UNIT);
-    blackhole.consume(got1);
+    // start - hot loop
+    var got = plan.converter.convert(plan.value, SOURCE_UNIT, TARGET_UNIT);
+    blackhole.consume(got);
+    // end
   }
 
   @State(Scope.Benchmark)
   public static class ExecutionPlan<T> {
 
     public List<String> testCases = testCases();
-    public UcumService ucumService = getUcumEssenceService();
 
     @Param({"baseline", "thomas"})
     public String impl;
@@ -53,25 +49,29 @@ public class DecimalBenchmark {
     public void setUp() throws Exception {
       setupConverter();
 
-      var testCase = 3;
-      var raw = testCases.get(testCase);
+      //      var testCase = 3;
+      //      var raw = testCases.get(testCase);
+      var raw = "2.997404248";
       value = converter.parse(raw);
     }
 
     private void setupConverter() {
-      //TODO: add better implementations here :D
-      converter = switch (impl) {
-        case "baseline" -> (Converter<T>) Converters.baseline(ucumService);
-        case "thomas" -> Converters.nop();
-          default -> throw new IllegalStateException("Unexpected value: " + impl);
-      };
+      // TODO: add better implementations here :D
+      converter =
+          switch (impl) {
+            //            case "nop" -> Converters.nop();
+            case "baseline" -> (Converter<T>) Converters.baseline(loadUcumEssenceService());
+            case "thomas" -> (Converter<T>) Converters.thomas(loadThomasUcumEssenceService());
+            default -> throw new IllegalStateException("Unexpected value: " + impl);
+          };
     }
 
     private static List<String> testCases() {
       return fixtures(
           "fixtures.lines",
           in -> {
-            try (var r = new BufferedReader(new InputStreamReader(in))) {
+            try (var ir = new InputStreamReader(in);
+                var r = new BufferedReader(ir)) {
               return r.lines().toList();
             } catch (IOException e) {
               throw new RuntimeException(e);
@@ -79,7 +79,20 @@ public class DecimalBenchmark {
           });
     }
 
-    private static UcumService getUcumEssenceService() {
+    private static ch.n1b.ucum.thomas.UcumEssenceService loadThomasUcumEssenceService() {
+      var fileName = "ucum-essence.xml";
+      return fixtures(
+          fileName,
+          in -> {
+            try {
+              return new ch.n1b.ucum.thomas.UcumEssenceService(in);
+            } catch (ch.n1b.ucum.thomas.UcumException e) {
+              throw new RuntimeException(e);
+            }
+          });
+    }
+
+    private static UcumService loadUcumEssenceService() {
       var fileName = "ucum-essence.xml";
       return fixtures(
           fileName,
@@ -107,5 +120,4 @@ public class DecimalBenchmark {
 
     T parse(String raw) throws Exception;
   }
-
 }

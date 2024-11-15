@@ -31,7 +31,10 @@
  *
  *******************************************************************************/
 
-package ch.n1b.ucum.lib;
+package ch.n1b.ucum.thomas;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * Precision aware Decimal implementation. Any size number with any number of significant digits is
@@ -59,7 +62,7 @@ public class Decimal {
   private String digits;
   private int decimal;
 
-  public Decimal() {
+  private Decimal() {
     super();
   }
 
@@ -179,8 +182,10 @@ public class Decimal {
     decimal = decimal + i;
   }
 
-  private String stringMultiply(char c, int i) {
-    return Utilities.padLeft("", c, i);
+  private String makeZeros(int count) {
+    byte[] buf = new byte[count];
+    Arrays.fill(buf, (byte) '0');
+    return new String(buf, StandardCharsets.US_ASCII);
   }
 
   private String insert(String ins, String value, int offset) {
@@ -240,10 +245,10 @@ public class Decimal {
     else if (!this.negative && other.negative) return 1;
     else {
       int max = Math.max(this.decimal, other.decimal);
-      String s1 = stringMultiply('0', max - this.decimal + 1) + this.digits;
-      String s2 = stringMultiply('0', max - other.decimal + 1) + other.digits;
-      if (s1.length() < s2.length()) s1 = s1 + stringMultiply('0', s2.length() - s1.length());
-      else if (s2.length() < s1.length()) s2 = s2 + stringMultiply('0', s1.length() - s2.length());
+      String s1 = makeZeros(max - this.decimal + 1) + this.digits;
+      String s2 = makeZeros(max - other.decimal + 1) + other.digits;
+      if (s1.length() < s2.length()) s1 = s1 + makeZeros(s2.length() - s1.length());
+      else if (s2.length() < s1.length()) s2 = s2 + makeZeros(s1.length() - s2.length());
       int result = s1.compareTo(s2);
       if (this.negative) result = -result;
       return result;
@@ -257,11 +262,11 @@ public class Decimal {
   public String asDecimal() {
     String result = digits;
     if (decimal != digits.length())
-      if (decimal < 0) result = "0." + stringMultiply('0', 0 - decimal) + digits;
+      if (decimal < 0) result = "0." + makeZeros(0 - decimal) + digits;
       else if (decimal < result.length())
         if (decimal == 0) result = "0." + result;
         else result = insert(".", result, decimal);
-      else result = result + stringMultiply('0', decimal - result.length());
+      else result = result + makeZeros(decimal - result.length());
     if (negative && !allZeros(result, 0)) result = "-" + result;
     return result;
   }
@@ -281,7 +286,7 @@ public class Decimal {
     boolean zero = allZeros(result, 0);
     if (zero) {
       if (precision < 2) result = "0e0";
-      else result = "0." + stringMultiply('0', precision - 1) + "e0";
+      else result = "0." + makeZeros(precision - 1) + "e0";
     } else {
       if (digits.length() > 1) result = insert(".", result, 1);
       result = result + 'e' + Integer.toString(decimal - 1);
@@ -336,10 +341,10 @@ public class Decimal {
 
   private Decimal doAdd(Decimal other) {
     int max = Math.max(decimal, other.decimal);
-    String s1 = stringMultiply('0', max - decimal + 1) + digits;
-    String s2 = stringMultiply('0', max - other.decimal + 1) + other.digits;
-    if (s1.length() < s2.length()) s1 = s1 + stringMultiply('0', s2.length() - s1.length());
-    else if (s2.length() < s1.length()) s2 = s2 + stringMultiply('0', s1.length() - s2.length());
+    String s1 = makeZeros(max - decimal + 1) + digits;
+    String s2 = makeZeros(max - other.decimal + 1) + other.digits;
+    if (s1.length() < s2.length()) s1 = s1 + makeZeros(s2.length() - s1.length());
+    else if (s2.length() < s1.length()) s2 = s2 + makeZeros(s1.length() - s2.length());
 
     String s3 = stringAddition(s1, s2);
 
@@ -377,10 +382,10 @@ public class Decimal {
 
   private Decimal doSubtract(Decimal other) {
     int max = Math.max(decimal, other.decimal);
-    String s1 = stringMultiply('0', max - decimal + 1) + digits;
-    String s2 = stringMultiply('0', max - other.decimal + 1) + other.digits;
-    if (s1.length() < s2.length()) s1 = s1 + stringMultiply('0', s2.length() - s1.length());
-    else if (s2.length() < s1.length()) s2 = s2 + stringMultiply('0', s1.length() - s2.length());
+    String s1 = makeZeros(max - decimal + 1) + digits;
+    String s2 = makeZeros(max - other.decimal + 1) + other.digits;
+    if (s1.length() < s2.length()) s1 = s1 + makeZeros(s2.length() - s1.length());
+    else if (s2.length() < s1.length()) s2 = s2 + makeZeros(s1.length() - s2.length());
 
     String s3;
     boolean neg = (s1.compareTo(s2) < 0);
@@ -460,42 +465,61 @@ public class Decimal {
     if (isZero() || other.isZero()) return zero();
 
     int max = Math.max(decimal, other.decimal);
-    String s1 = stringMultiply('0', max - decimal + 1) + digits;
-    String s2 = stringMultiply('0', max - other.decimal + 1) + other.digits;
-    if (s1.length() < s2.length()) s1 = s1 + stringMultiply('0', s2.length() - s1.length());
-    else if (s2.length() < s1.length()) s2 = s2 + stringMultiply('0', s1.length() - s2.length());
 
-    if (s2.compareTo(s1) > 0) {
-      String s3 = s1;
-      s1 = s2;
-      s2 = s3;
+    var byteDigits = ByteString.ofString(digits);
+    var otherByteDigits = ByteString.ofString(other.digits);
+
+    var b1 = ByteString.ofZeros(max - decimal + 1).concat(byteDigits);
+    var b2 = ByteString.ofZeros(max - other.decimal + 1).concat(otherByteDigits);
+
+    if (b1.length() < b2.length()) {
+      b1 = b1.concat(ByteString.ofZeros(b2.length() - b1.length()));
+    } else if (b2.length() < b1.length()) {
+      b2 = b2.concat(ByteString.ofZeros(b1.length() - b2.length()));
     }
-    String[] s = new String[s2.length()];
+
+    if (b2.compareTo(b1) > 0) {
+      // swap
+      ByteString b3 = b1;
+      b1 = b2;
+      b2 = b3;
+    }
+    ByteString[] bufs = new ByteString[b2.length()];
 
     int t = 0;
-    for (int i = s2.length() - 1; i >= 0; i--) {
-      s[i] = stringMultiply('0', s2.length() - (i + 1));
+    for (int i = b2.length() - 1; i >= 0; i--) {
+      bufs[i] = ByteString.ofZeros(b2.length() - (i + 1));
       int c = 0;
-      for (int j = s1.length() - 1; j >= 0; j--) {
-        t = c + (dig(s1.charAt(j)) * dig(s2.charAt(i)));
-        s[i] = insert(String.valueOf(cdig(t % 10)), s[i], 0);
+
+      var prepend = ByteString.ofZeros(b1.length());
+      for (int j = b1.length() - 1; j >= 0; j--) {
+        t = c + (b1.at(j) * b2.at(i));
+        prepend.set(j, (byte) (t % 10));
         c = t / 10;
       }
+      bufs[i] = prepend.concat(bufs[i]);
+
       while (c > 0) {
-        s[i] = insert(String.valueOf(cdig(t % 10)), s[i], 0);
+        bufs[i] = prepend((byte) (t % 10), bufs[i]);
         c = t / 10;
       }
     }
 
     t = 0;
-    for (String sv : s) t = Math.max(t, sv.length());
-    for (int i = 0; i < s.length; i++) s[i] = stringMultiply('0', t - s[i].length()) + s[i];
+    for (ByteString sv : bufs) {
+      t = Math.max(t, sv.length());
+    }
+    for (int i = 0; i < bufs.length; i++) {
+      bufs[i] = ByteString.ofZeros(t - bufs[i].length()).concat(bufs[i]);
+    }
 
-    String res = "";
+    ByteString res = ByteString.ofZeros(0);
     int c = 0;
     for (int i = t - 1; i >= 0; i--) {
-      for (int j = 0; j < s.length; j++) c = c + dig(s[j].charAt(i));
-      res = insert(String.valueOf(cdig(c % 10)), res, 0);
+      for (int j = 0; j < bufs.length; j++) {
+        c = c + bufs[j].at(i);
+      }
+      res = prepend((byte) (c % 10), res);
       c = c / 10;
     }
 
@@ -506,9 +530,9 @@ public class Decimal {
       //        c = t div 10;
     }
 
-    int dec = res.length() - ((s1.length() - (max + 1)) * 2);
+    int dec = res.length() - ((b1.length() - (max + 1)) * 2);
 
-    while (!Utilities.noString(res) && !res.equals("0") && res.startsWith("0")) {
+    while (!res.isEmpty() && !isExactlyZero(res) && res.at(0) == 0) {
       res = res.substring(1);
       dec--;
     }
@@ -523,12 +547,12 @@ public class Decimal {
     else if (isWholeNumber()) prec = other.precision;
     else if (other.isWholeNumber()) prec = precision;
     else prec = Math.min(precision, other.precision);
-    while (res.length() > prec && res.charAt(res.length() - 1) == '0')
+    while (res.length() > prec && res.at(res.length() - 1) == 0)
       res = delete(res, res.length() - 1, 1);
 
     Decimal result = new Decimal();
     try {
-      result.setValueDecimal(res);
+      result.setValueDecimal(res.toString());
     } catch (Exception e) {
       // won't happen
     }
@@ -537,6 +561,27 @@ public class Decimal {
     result.negative = negative != other.negative;
     result.scientific = scientific || other.scientific;
     return result;
+  }
+
+  private boolean isExactlyZero(ByteString bs) {
+    return bs.length() == 1 && bs.hasAllZeros();
+  }
+
+  private ByteString prepend(byte b, ByteString value) {
+    return ByteString.wrapping(new byte[] {b}).concat(value);
+  }
+
+  private ByteString insert(ByteString ins, ByteString value, int offset) {
+    if (offset == 0) {
+      return ins.concat(value);
+    } else {
+      return value.substring(0, offset).concat(ins).concat(value.substring(offset));
+    }
+  }
+
+  private ByteString delete(ByteString value, int offset, int length) {
+    if (offset == 0) return value.substring(length);
+    else return value.substring(0, offset).concat(value.substring(offset + length));
   }
 
   public Decimal divide(Decimal other) throws UcumException {
@@ -549,7 +594,7 @@ public class Decimal {
     String s = "0" + other.digits;
     int m = Math.max(digits.length(), other.digits.length()) + 40; // max loops we'll do
     String[] tens = new String[10];
-    tens[0] = stringAddition(stringMultiply('0', s.length()), s);
+    tens[0] = stringAddition(makeZeros(s.length()), s);
     for (int i = 1; i < 10; i++) tens[i] = stringAddition(tens[i - 1], s);
     String v = digits;
     String r = "";
