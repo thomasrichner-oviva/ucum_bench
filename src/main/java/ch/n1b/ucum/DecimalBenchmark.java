@@ -6,17 +6,19 @@ import ch.n1b.ucum.lib.Decimal;
 import ch.n1b.ucum.lib.UcumEssenceService;
 import ch.n1b.ucum.lib.UcumException;
 import ch.n1b.ucum.lib.UcumService;
+import org.openjdk.jmh.Main;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.Scanner;
+import java.util.function.Function;
 
 public class DecimalBenchmark {
   public static void main(String[] args) throws Exception {
-    org.openjdk.jmh.Main.main(args);
+    Main.main(args);
   }
 
   static final String SOURCE_UNIT = "mol.m-3";
@@ -24,42 +26,86 @@ public class DecimalBenchmark {
 
   @Benchmark
   @Fork(value = 1, warmups = 1)
-  @Warmup(iterations = 10, time = 500, timeUnit = MILLISECONDS)
+  @Warmup(iterations = 10, time = 200, timeUnit = MILLISECONDS)
   @Measurement(iterations = 10, time = 200, timeUnit = MILLISECONDS)
   @BenchmarkMode(Mode.Throughput)
   public void benchmarkDecimalConvert(ExecutionPlan plan, Blackhole blackhole)
-      throws UcumException {
+      throws Exception {
 
-    var got = plan.ucumService.convert(plan.value, SOURCE_UNIT, TARGET_UNIT);
-    blackhole.consume(got);
+    // the hot loop
+    var got1 = plan.converter.convert(plan.value, SOURCE_UNIT, TARGET_UNIT);
+    blackhole.consume(got1);
   }
 
   @State(Scope.Benchmark)
-  public static class ExecutionPlan {
+  public static class ExecutionPlan<T> {
 
-    static final int PRECISION = 64;
+    public List<String> testCases = testCases();
+    public UcumService ucumService = getUcumEssenceService();
 
-    public UcumService ucumService;
+    @Param({"baseline", "thomas"})
+    public String impl;
 
-    @Param({"nop", "ucum"})
-    public String alg;
-
-    public Decimal value;
+    public T value;
+    public Converter<T> converter;
 
     @Setup(Level.Invocation)
     public void setUp() throws Exception {
-      ucumService = getUcumEssenceService();
+      setupConverter();
 
-      value = new Decimal("3.1415926535", PRECISION);
+      var testCase = 3;
+      var raw = testCases.get(testCase);
+      value = converter.parse(raw);
     }
 
-    private UcumService getUcumEssenceService() throws FileNotFoundException, UcumException {
-      String fileName = "ucum-essence.xml";
-      ClassLoader classLoader = getClass().getClassLoader();
-      File file = new File(classLoader.getResource(fileName).getFile());
-      InputStream inputStream = new FileInputStream(file);
-      UcumService ucumService = new UcumEssenceService(inputStream);
-      return ucumService;
+    private void setupConverter() {
+      //TODO: add better implementations here :D
+      converter = switch (impl) {
+        case "baseline" -> (Converter<T>) Converters.baseline(ucumService);
+        case "thomas" -> Converters.nop();
+          default -> throw new IllegalStateException("Unexpected value: " + impl);
+      };
+    }
+
+    private static List<String> testCases() {
+      return fixtures(
+          "fixtures.lines",
+          in -> {
+            try (var r = new BufferedReader(new InputStreamReader(in))) {
+              return r.lines().toList();
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          });
+    }
+
+    private static UcumService getUcumEssenceService() {
+      var fileName = "ucum-essence.xml";
+      return fixtures(
+          fileName,
+          in -> {
+            try {
+              return new UcumEssenceService(in);
+            } catch (UcumException e) {
+              throw new RuntimeException(e);
+            }
+          });
+    }
+
+    private static <T> T fixtures(String fn, Function<InputStream, T> mapper) {
+      var classLoader = ExecutionPlan.class.getClassLoader();
+      try (var in = classLoader.getResourceAsStream(fn)) {
+        return mapper.apply(in);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
+
+  public interface Converter<T> {
+    T convert(T value, String sourceUnit, String destUnit) throws Exception;
+
+    T parse(String raw) throws Exception;
+  }
+
 }
