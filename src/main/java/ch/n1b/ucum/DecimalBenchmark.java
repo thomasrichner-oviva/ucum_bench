@@ -1,6 +1,7 @@
 package ch.n1b.ucum;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static javax.measure.MetricPrefix.MILLI;
 
 import ch.n1b.ucum.lib.UcumEssenceService;
 import ch.n1b.ucum.lib.UcumException;
@@ -8,7 +9,9 @@ import ch.n1b.ucum.lib.UcumService;
 import org.openjdk.jmh.Main;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
+import tech.units.indriya.unit.Units;
 
+import javax.measure.Prefix;
 import java.io.*;
 import java.util.List;
 import java.util.function.Function;
@@ -39,7 +42,7 @@ public class DecimalBenchmark {
 
     public List<String> testCases = testCases();
 
-    @Param({"baseline", "thomas"})
+    @Param({"baseline", "thomas", "indrya"})
     public String impl;
 
     public T value;
@@ -62,6 +65,7 @@ public class DecimalBenchmark {
             //            case "nop" -> Converters.nop();
             case "baseline" -> (Converter<T>) Converters.baseline(loadUcumEssenceService());
             case "thomas" -> (Converter<T>) Converters.thomas(loadThomasUcumEssenceService());
+            case "indrya" -> (Converter<T>) Converters.indrya();
             default -> throw new IllegalStateException("Unexpected value: " + impl);
           };
     }

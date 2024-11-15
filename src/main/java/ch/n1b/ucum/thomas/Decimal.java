@@ -256,18 +256,38 @@ public class Decimal {
   }
 
   public boolean isWholeNumber() {
+    // fastpath
+    if (decimal != digits.length()) {
+      if (decimal < 0) {
+        return false;
+      } else if (decimal < digits.length()) {
+        return false;
+      } else {
+
+      }
+    }
     return !asDecimal().contains(".");
   }
 
   public String asDecimal() {
     String result = digits;
-    if (decimal != digits.length())
-      if (decimal < 0) result = "0." + makeZeros(0 - decimal) + digits;
-      else if (decimal < result.length())
-        if (decimal == 0) result = "0." + result;
-        else result = insert(".", result, decimal);
-      else result = result + makeZeros(decimal - result.length());
-    if (negative && !allZeros(result, 0)) result = "-" + result;
+    if (decimal != digits.length()) {
+      if (decimal < 0) {
+        result = "0." + makeZeros(0 - decimal) + digits;
+      } else if (decimal < result.length()) {
+        if (decimal == 0) {
+          result = "0." + result;
+        } else {
+          result = insert(".", result, decimal);
+        }
+      } else {
+        result = result + makeZeros(decimal - result.length());
+      }
+    }
+
+    if (negative && !allZeros(result, 0)) {
+      result = "-" + result;
+    }
     return result;
   }
 

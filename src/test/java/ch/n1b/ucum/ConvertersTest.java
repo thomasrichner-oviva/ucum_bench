@@ -1,11 +1,14 @@
 package ch.n1b.ucum;
 
-import ch.n1b.ucum.thomas.UcumException;
-import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-
+import static javax.measure.MetricPrefix.MILLI;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import ch.n1b.ucum.thomas.UcumException;
+import java.io.IOException;
+import java.math.BigDecimal;
+import javax.measure.Unit;
+import org.junit.jupiter.api.Test;
+import tech.units.indriya.unit.Units;
 
 class ConvertersTest {
 
@@ -23,13 +26,21 @@ class ConvertersTest {
     var value = sut.parse(raw);
     var refValue = ref.parse(raw);
 
+
+    var src = Units.MOLE.divide(Units.CUBIC_METRE);
+    var dst = MILLI(Units.MOLE).divide(Units.LITRE);
+    var converter = src.getConverterTo((Unit)dst);
+    var indrya = converter.convert(new BigDecimal(raw));
+
     var expected = ref.convert(refValue, SOURCE_UNIT, TARGET_UNIT);
     var got = sut.convert(value, SOURCE_UNIT, TARGET_UNIT);
     assertEquals(got.toString(), expected.toString());
+//    assertEquals(indrya.toString(), expected.toString());
     System.out.printf("value: %s, refValue: %s%n", value, refValue);
 
     for (int i = 0; i < 4000; i++) {
-      sut.convert(value, SOURCE_UNIT, TARGET_UNIT);
+//      sut.convert(value, SOURCE_UNIT, TARGET_UNIT);
+      converter.convert(new BigDecimal(raw));
     }
   }
 

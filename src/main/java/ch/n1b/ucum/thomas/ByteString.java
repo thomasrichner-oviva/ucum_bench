@@ -48,24 +48,6 @@ public class ByteString {
     return x + 1;
   }
 
-  //  public void trimLeftZeros() {
-  //    if (bytes == null || len == 0) {
-  //      // if we only have '0' bytes then this will trim them all
-  //      this.len = 0;
-  //      return;
-  //    }
-  //
-  //    var i = 0;
-  //    for (; i < len; i++) {
-  //      if (bytes[i] != 0) {
-  //        break;
-  //      }
-  //    }
-  //    var newBytes = new byte[len - i];
-  //    System.arraycopy(bytes, i, newBytes, 0, len - i);
-  //    bytes = newBytes;
-  //  }
-
   public byte at(int i) {
     if (i < 0 || i >= len) {
       throw new IndexOutOfBoundsException("0 <= %d < %d".formatted(i, len));
@@ -139,7 +121,7 @@ public class ByteString {
   }
 
   public int compareTo(ByteString other) {
-    if (this.bytes == null && other.bytes == null) {
+    if (this.hasAllZeros() && other.hasAllZeros()) {
       return this.len - other.len;
     }
 
