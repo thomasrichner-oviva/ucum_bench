@@ -2,37 +2,31 @@ package ch.n1b.ucum;
 
 import ch.n1b.ucum.lib.Decimal;
 import ch.n1b.ucum.lib.UcumService;
-import ch.n1b.ucum.thomas.UcumEssenceService;
-import tech.units.indriya.unit.Units;
-
-import javax.measure.Unit;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-
-import static javax.measure.MetricPrefix.MILLI;
+import javax.measure.Unit;
+import systems.uom.ucum.format.UCUMFormat;
 
 public class Converters {
 
-  static DecimalBenchmark.Converter<Number> indrya() {
+  static DecimalBenchmark.Converter<BigDecimal> indrya() {
 
-    return new DecimalBenchmark.Converter<Number>() {
+    return new DecimalBenchmark.Converter<BigDecimal>() {
       @Override
-      public Number convert(Number value, String sourceUnit, String destUnit) throws Exception {
+      public BigDecimal convert(BigDecimal value, String sourceUnit, String destUnit)
+          throws Exception {
 
-        // that's a bit cheating, we skip parsing the units :)
-        var src = Units.MOLE.divide(Units.CUBIC_METRE);
-        var dst = MILLI(Units.MOLE).divide(Units.LITRE);
+        var src = UCUMFormat.getInstance(UCUMFormat.Variant.CASE_SENSITIVE).parse(sourceUnit);
+        var dst = UCUMFormat.getInstance(UCUMFormat.Variant.CASE_SENSITIVE).parse(destUnit);
 
         var converter = src.getConverterTo((Unit) dst);
 
-        return converter.convert(value);
+        return (BigDecimal) converter.convert(value);
       }
 
       @Override
-      public Number parse(String raw) throws Exception {
-        var v = new BigDecimal(raw);
-        v = v.setScale(64, RoundingMode.UNNECESSARY);
-        return v;
+      public BigDecimal parse(String raw) throws Exception {
+        return new BigDecimal(raw).setScale(64, RoundingMode.UNNECESSARY);
       }
     };
   }

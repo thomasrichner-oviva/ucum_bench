@@ -18,7 +18,20 @@
         <dependency>
             <groupId>tech.units</groupId>
             <artifactId>indriya</artifactId>
-            <version>2.2</version>
+            <!--            UCUM doesn't work with 2.2 :/ -->
+            <!--            <version>2.2</version>-->
+            <version>2.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>systems.uom</groupId>
+            <artifactId>systems-ucum</artifactId>
+            <version>2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>systems.uom</groupId>
+            <artifactId>systems-quantity</artifactId>
+            <version>2.1</version>
+            <!-- peer dependency of systems-ucum -->
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
